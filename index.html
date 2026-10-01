@@ -3,102 +3,402 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!--
-  关键：必须放宽 Referrer-Policy。
-  跨源请求默认只发 origin（不带路径），被包裹站点就无法做「路径级」白名单判断。
-  单文件静态部署时靠这条 meta；用 Web 服务器托管时也可改由响应头
-  Referrer-Policy: unsafe-url 控制（两者同时存在不冲突）。
--->
-<meta name="referrer" content="unsafe-url">
-<title>容器</title>
+<meta name="theme-color" content="#1c1033">
+<title>永久导航 · 最新地址</title>
 <style>
-  /* 全屏无边框：iframe 铺满视口，无边框、无滚动条、无留白，缩放时始终贴合 */
-  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0b0f19; }
-  #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
-  #badge { position: fixed; right: 8px; bottom: 8px; z-index: 9;
-           font: 12px/1.5 system-ui, sans-serif; color: #fff;
-           background: rgba(15, 23, 42, .72); padding: 3px 8px; border-radius: 6px; }
+  :root{
+    --pink:#ff9ec4;
+    --pink-soft:#ffd9e8;
+    --pink-deep:#ff6fa5;
+    --purple:#b28dff;
+    --cyan:#8fe3ff;
+    --ink:#0d0819;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family:system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+    color:#fff;
+    background:
+      radial-gradient(1200px 700px at 15% 8%, rgba(178,141,255,.36), transparent 62%),
+      radial-gradient(900px 620px at 86% 18%, rgba(255,158,196,.30), transparent 62%),
+      radial-gradient(1000px 800px at 50% 112%, rgba(143,227,255,.16), transparent 62%),
+      linear-gradient(180deg,#140b26 0%, #1c1033 45%, #0d0819 100%);
+    background-attachment:fixed;
+    overflow-x:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:44px 18px;
+  }
+
+  /* ---------- 背景层 ---------- */
+  #sky{position:fixed;inset:0;z-index:0;pointer-events:none;}
+  .moon{
+    position:fixed;top:7%;right:11%;width:104px;height:104px;border-radius:50%;z-index:0;
+    background:radial-gradient(circle at 34% 32%, #fffafc 0%, #ffe6f2 42%, #ffc3dd 70%, rgba(255,195,221,0) 72%);
+    box-shadow:0 0 60px 18px rgba(255,190,220,.30), 0 0 140px 50px rgba(178,141,255,.18);
+    animation:moonBreath 8s ease-in-out infinite;
+    pointer-events:none;
+  }
+  @keyframes moonBreath{
+    0%,100%{transform:translateY(0) scale(1);opacity:.92;}
+    50%{transform:translateY(-8px) scale(1.04);opacity:1;}
+  }
+  .glow-orb{position:fixed;border-radius:50%;filter:blur(90px);opacity:.5;z-index:0;pointer-events:none;}
+  .glow-orb.one{width:420px;height:420px;left:-140px;top:-130px;background:radial-gradient(circle,#b28dff,transparent 70%);animation:float1 16s ease-in-out infinite;}
+  .glow-orb.two{width:400px;height:400px;right:-120px;bottom:-140px;background:radial-gradient(circle,#ff9ec4,transparent 70%);animation:float2 20s ease-in-out infinite;}
+  @keyframes float1{50%{transform:translate(70px,50px) scale(1.12);}}
+  @keyframes float2{50%{transform:translate(-60px,-40px) scale(1.08);}}
+
+  /* ---------- 卡片 ---------- */
+  .card{
+    position:relative;z-index:2;
+    width:min(560px,100%);
+    padding:38px 32px 26px;
+    border-radius:28px;
+    text-align:center;
+    background:linear-gradient(160deg,rgba(255,255,255,.15),rgba(255,255,255,.045));
+    border:1px solid rgba(255,255,255,.22);
+    box-shadow:
+      0 30px 80px rgba(18,7,38,.68),
+      0 0 0 1px rgba(255,158,196,.10),
+      inset 0 1px 0 rgba(255,255,255,.38);
+    backdrop-filter:blur(20px) saturate(140%);
+    -webkit-backdrop-filter:blur(20px) saturate(140%);
+    animation:rise .9s cubic-bezier(.2,.8,.2,1) both;
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(28px) scale(.97);}to{opacity:1;transform:none;}}
+  .card::before{
+    content:'';position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;
+    background:linear-gradient(140deg,rgba(255,158,196,.55),rgba(255,255,255,0) 42%,rgba(178,141,255,.45));
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;padding:1px;
+    opacity:.55;
+  }
+
+  .badge{
+    display:inline-block;padding:6px 14px;border-radius:999px;
+    font-size:10.5px;letter-spacing:.3em;text-indent:.3em;color:var(--pink-soft);
+    border:1px solid rgba(255,158,196,.45);background:rgba(255,158,196,.12);
+  }
+  h1{
+    margin:18px 0 10px;
+    font-size:38px;line-height:1.16;letter-spacing:.08em;text-indent:.08em;font-weight:800;
+    background:linear-gradient(100deg,#ffffff 0%,#ffd9e8 28%,#ff9ec4 56%,#b28dff 88%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 20px rgba(255,158,196,.45));
+  }
+  .sub{
+    margin:0;font-size:13.5px;letter-spacing:.12em;color:rgba(255,255,255,.72);
+  }
+
+  /* ---------- 公告区 ---------- */
+  .notice{
+    position:relative;
+    margin:26px 0 22px;padding:18px 20px 18px 22px;
+    border-radius:18px;text-align:left;
+    background:linear-gradient(150deg,rgba(255,158,196,.14),rgba(178,141,255,.10));
+    border:1px solid rgba(255,158,196,.30);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.16);
+  }
+  .notice::before{
+    content:'';position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:3px;
+    background:linear-gradient(180deg,#ffd9e8,#ff9ec4,#b28dff);
+    box-shadow:0 0 14px rgba(255,158,196,.75);
+  }
+  .notice-title{
+    display:flex;align-items:center;gap:8px;
+    margin:0 0 10px;font-size:12.5px;font-weight:700;letter-spacing:.22em;text-indent:.22em;
+    color:var(--pink-soft);
+  }
+  .notice-title .dot{
+    width:7px;height:7px;border-radius:50%;background:var(--pink-deep);
+    box-shadow:0 0 0 0 rgba(255,111,165,.8);animation:pulse 2s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(255,111,165,.75);}
+    70%{box-shadow:0 0 0 9px rgba(255,111,165,0);}
+    100%{box-shadow:0 0 0 0 rgba(255,111,165,0);}
+  }
+  .notice-body{
+    margin:0;font-size:13.5px;line-height:1.95;letter-spacing:.03em;
+    color:rgba(255,255,255,.86);
+    white-space:pre-line;
+    max-height:190px;overflow-y:auto;
+    padding-right:4px;
+  }
+  .notice-body::-webkit-scrollbar{width:5px;}
+  .notice-body::-webkit-scrollbar-thumb{background:rgba(255,158,196,.45);border-radius:5px;}
+  .notice-body::-webkit-scrollbar-track{background:rgba(255,255,255,.06);border-radius:5px;}
+  .notice-body .em{color:var(--pink-soft);font-weight:700;}
+  .notice-date{
+    display:block;margin-top:12px;font-size:11px;letter-spacing:.1em;
+    color:rgba(255,255,255,.42);
+  }
+
+  /* ---------- 主入口按钮 ---------- */
+  .enter{
+    position:relative;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%;padding:17px 20px;border-radius:16px;text-decoration:none;
+    font-size:16px;font-weight:800;letter-spacing:.14em;text-indent:.14em;color:#2a0f22;
+    background:linear-gradient(100deg,#ffd9e8,#ff9ec4 46%,#b28dff);
+    box-shadow:0 16px 40px rgba(255,110,165,.42);
+    transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s,filter .28s;
+  }
+  .enter::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);
+    transform:translateX(-130%);transition:transform .8s ease;
+  }
+  .enter:hover::after{transform:translateX(130%);}
+  .enter:hover{transform:translateY(-3px);box-shadow:0 22px 52px rgba(255,110,165,.60);filter:saturate(1.1);}
+  .enter:active{transform:translateY(-1px) scale(.99);}
+  .enter .spark{font-size:15px;}
+
+  .hint{
+    margin:12px 0 0;font-size:11.5px;letter-spacing:.08em;color:rgba(255,255,255,.46);
+  }
+
+  /* ---------- 次级按钮 ---------- */
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+  .actions button{
+    flex:1 1 150px;min-width:140px;padding:12px 16px;border-radius:14px;
+    font-family:inherit;font-size:13px;letter-spacing:.08em;cursor:pointer;
+    color:var(--pink-soft);background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.22);
+    transition:transform .25s,background .25s,border-color .25s;
+  }
+  .actions button:hover{
+    background:rgba(255,255,255,.14);border-color:rgba(255,158,196,.5);transform:translateY(-2px);
+  }
+  .actions button:active{transform:translateY(0) scale(.99);}
+
+  footer{
+    margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12);
+    font-size:11.5px;letter-spacing:.08em;color:rgba(255,255,255,.45);
+  }
+
+  /* ---------- 提示条 ---------- */
+  .toast{
+    position:fixed;left:50%;bottom:38px;z-index:9;pointer-events:none;
+    padding:11px 22px;border-radius:999px;font-size:13px;font-weight:700;color:#2a0f22;
+    background:linear-gradient(100deg,#ffd9e8,#b28dff);
+    box-shadow:0 14px 38px rgba(255,110,165,.45);
+    opacity:0;transform:translate(-50%,20px);transition:.35s cubic-bezier(.2,.8,.2,1);
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+
+  @media (max-width:520px){
+    body{padding:28px 14px;}
+    .card{padding:30px 20px 20px;border-radius:24px;}
+    h1{font-size:29px;}
+    .moon{width:74px;height:74px;top:5%;right:8%;}
+    .notice{padding:16px 16px 16px 18px;}
+    .enter{padding:15px 16px;font-size:15px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition-duration:.01ms!important;}
+  }
 </style>
 </head>
 <body>
-<!--
-  sandbox 有意不授予 allow-top-navigation：
-  这样 target="_top" / _parent 以及 frame-busting 脚本在浏览器层就被拦截，
-  页面脚本说了不算，是被嵌页面顶掉容器的最终兜底。
--->
-<iframe id="app"
-        title="业务站点"
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals"></iframe>
-<div id="badge"></div>
+<canvas id='sky'></canvas>
+<div class='moon'></div>
+<div class='glow-orb one'></div>
+<div class='glow-orb two'></div>
+
+<main class='card'>
+  <div class='badge'>SAKURA NAV</div>
+  <h1>永久导航</h1>
+  <p class='sub'>最新地址 · 请收藏本页，永不迷路</p>
+
+  <!-- ===== 公告区：直接改下面这段文字即可 ===== -->
+  <section class='notice'>
+    <p class='notice-title'><span class='dot'></span>公告栏</p>
+    <p class='notice-body'>欢迎来到本站 ✦
+本站为小型站点，<span class='em'>唯一官方入口</span>就是下方按钮指向的地址，无其他分站。
+如遇访问不畅，请稍后重试，或联系我们。
+请务必收藏本页，地址如有变更会第一时间在此公告。
+<span class='notice-date'>更新于 2026-10-02</span></p>
+  </section>
+  <!-- ========================================= -->
+
+  <!-- 唯一入口：地址由 JS 变量 SITE_URL 注入，无需改这里 -->
+  <a class='enter' id='enter' href='#'>
+    <span class='spark'>✦</span>
+    <span>进入本站</span>
+    <span class='spark'>✦</span>
+  </a>
+  <p class='hint'>点击即跳转 · 建议使用最新版浏览器</p>
+
+  <div class='actions'>
+    <button id='copyPage' type='button'>复制本页地址</button>
+    <button id='copySite' type='button'>复制本站网址</button>
+  </div>
+
+  <footer>本站仅作地址导航 · © <span id='year'></span></footer>
+</main>
+
+<div class='toast' id='toast'></div>
+
 <script>
-/* ===== 配置区：迁移到其他项目只需改这三项 ===== */
-var CONFIG = {
-  frameOrigin: 'http://43.241.50.45:1088',  // 被包裹站点的 origin（即本项目 run.py 的 1088 端口）
-  defaultPath: '/',                      // 无 hash 时的默认路由（本站 / 会 307 跳 /login）
-  allowPopups: []                        // 允许开真实窗口的路径白名单（唯一决策方=容器）
-};
-/* ============================================ */
+/* ===== 配置区：只改这一行 =====
+   SITE_URL = 本站最新网址（唯一入口按钮和「复制本站网址」都读它）。
+   公告文字在下方 .notice-body 里直接改。 */
+var SITE_URL = 'http://43.241.50.45:1088';
+/* ================================= */
 
+/* ===== 背景：星辰 + 樱花瓣 ===== */
 (function () {
-  'use strict';
+  var cv = document.getElementById('sky');
+  var ctx = cv.getContext('2d');
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var W = 0, H = 0, stars = [], petals = [], t = 0;
 
-  var frame = document.getElementById('app');
-  var ORIGIN = CONFIG.frameOrigin;
-  var driving = false;   // 本次地址变化由容器驱动，抑制 hashchange 再次改写 iframe
+  function rand(a, b) { return a + Math.random() * (b - a); }
 
-  // 徽标自解释：单文件被放到任意路径都能显示自身位置，便于对照 /evil.html 等场景
-  document.getElementById('badge').textContent =
-    window.location.host + window.location.pathname;
-
-  // 跨源下容器读不到 iframe.location，只能由 hash 承载路由。
-  function frameSrc() {
-    var h = window.location.hash.replace(/^#/, '');
-    return ORIGIN + (h.charAt(0) === '/' ? h : CONFIG.defaultPath);
+  function newPetal(init) {
+    return {
+      x: rand(-40, W + 40),
+      y: init ? rand(-H, H) : rand(-90, -20),
+      r: rand(5, 11),
+      rot: rand(0, Math.PI * 2),
+      vr: rand(-0.02, 0.02),
+      vy: rand(0.35, 1.15),
+      vx: rand(-0.35, 0.35),
+      sway: rand(0.6, 1.8),
+      ph: rand(0, Math.PI * 2),
+      a: rand(0.35, 0.8)
+    };
   }
 
-  function toPath(url) {
-    try {
-      var u = new URL(url);
-      return u.pathname + u.search + u.hash;
-    } catch (e) { return null; }
+  function build() {
+    stars = [];
+    var n = Math.round(W * H / 9000);
+    for (var i = 0; i < n; i++) {
+      stars.push({ x: rand(0, W), y: rand(0, H), r: rand(0.5, 1.6), p: rand(0, Math.PI * 2), s: rand(0.6, 1.8) });
+    }
+    petals = [];
+    var m = Math.max(14, Math.round(W / 55));
+    for (var j = 0; j < m; j++) petals.push(newPetal(true));
   }
 
-  // 容器是弹窗策略的唯一决策者，通过 postMessage 下发给被嵌页面执行。
-  function pushPolicy() {
-    try {
-      frame.contentWindow.postMessage(
-        { channel: 'frame-bridge', type: 'policy', allowPopups: CONFIG.allowPopups },
-        ORIGIN
-      );
-    } catch (e) { /* 忽略 */ }
+  function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    cv.width = W * dpr;
+    cv.height = H * dpr;
+    cv.style.width = W + 'px';
+    cv.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    build();
   }
 
-  frame.addEventListener('load', pushPolicy);
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
 
-  window.addEventListener('message', function (event) {
-    if (event.origin !== ORIGIN) return;               // 安全：来源校验
-    if (event.source !== frame.contentWindow) return;  // 安全：只信任本 iframe
-    var data = event.data;
-    if (!data || data.channel !== 'frame-bridge' || data.type !== 'event') return;
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      var tw = 0.42 + 0.58 * Math.abs(Math.sin(t * 0.02 * s.s + s.p));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,236,247,' + (tw * 0.85).toFixed(3) + ')';
+      ctx.fill();
+    }
 
-    if (data.kind === 'ready' || data.kind === 'navigated') {
-      var path = toPath(data.url);
-      if (path && '#' + path !== window.location.hash) {
-        driving = true;
-        window.location.hash = path;   // 顶层历史由容器持有，前进/后退可回放
-      }
+    for (var k = 0; k < petals.length; k++) {
+      var p = petals[k];
+      p.ph += 0.02 * p.sway;
+      p.x += p.vx + Math.sin(p.ph) * 0.6;
+      p.y += p.vy;
+      p.rot += p.vr;
+      if (p.y > H + 40 || p.x < -80 || p.x > W + 80) { petals[k] = newPetal(false); continue; }
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = p.a;
+      var g = ctx.createLinearGradient(-p.r, -p.r, p.r, p.r);
+      g.addColorStop(0, '#ffd9e8');
+      g.addColorStop(0.6, '#ff9ec4');
+      g.addColorStop(1, '#c98bff');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(0, -p.r);
+      ctx.bezierCurveTo(p.r * 0.95, -p.r * 0.5, p.r * 0.6, p.r * 0.85, 0, p.r);
+      ctx.bezierCurveTo(-p.r * 0.6, p.r * 0.85, -p.r * 0.95, -p.r * 0.5, 0, -p.r);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    t++;
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  draw();
+})();
+
+/* ===== 交互：复制 + 年份 ===== */
+(function () {
+  var toast = document.getElementById('toast');
+  var timer = null;
+
+  function show(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(timer);
+    timer = setTimeout(function () { toast.classList.remove('show'); }, 1800);
+  }
+
+  function fallback(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function copy(text, okMsg) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () {
+        show(okMsg);
+      }, function () {
+        show(fallback(text) ? okMsg : '复制失败，请手动复制');
+      });
+    } else {
+      show(fallback(text) ? okMsg : '复制失败，请手动复制');
+    }
+  }
+
+  document.getElementById('copyPage').addEventListener('click', function () {
+    copy(window.location.href, '已复制本页地址 ✦');
+  });
+
+  // 用 SITE_URL 注入唯一入口按钮地址
+  var enter = document.getElementById('enter');
+  if (SITE_URL && SITE_URL !== '#') enter.href = SITE_URL;
+
+  document.getElementById('copySite').addEventListener('click', function () {
+    if (!SITE_URL || SITE_URL === '#') {
+      show('请先设置 SITE_URL');
       return;
     }
-    console.log('[容器] 被嵌页面事件：', data.kind, data.url || '');
+    copy(SITE_URL, '已复制本站网址 ✦');
   });
 
-  // 浏览器前进/后退：把 iframe 驱到 hash 对应的路由
-  window.addEventListener('hashchange', function () {
-    if (driving) { driving = false; return; }
-    frame.src = frameSrc();
-  });
-
-  frame.src = frameSrc();
+  document.getElementById('year').textContent = new Date().getFullYear();
 })();
 </script>
 </body>
