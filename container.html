@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  关键：必须放宽 Referrer-Policy。
+  跨源请求默认只发 origin（不带路径），被包裹站点就无法做「路径级」白名单判断。
+  单文件静态部署时靠这条 meta；用 Web 服务器托管时也可改由响应头
+  Referrer-Policy: unsafe-url 控制（两者同时存在不冲突）。
+-->
+<meta name="referrer" content="unsafe-url">
+<title>容器</title>
+<style>
+  /* 全屏无边框：iframe 铺满视口，无边框、无滚动条、无留白，缩放时始终贴合 */
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0b0f19; }
+  #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+  #badge { position: fixed; right: 8px; bottom: 8px; z-index: 9;
+           font: 12px/1.5 system-ui, sans-serif; color: #fff;
+           background: rgba(15, 23, 42, .72); padding: 3px 8px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<!--
+  sandbox 有意不授予 allow-top-navigation：
+  这样 target="_top" / _parent 以及 frame-busting 脚本在浏览器层就被拦截，
+  页面脚本说了不算，是被嵌页面顶掉容器的最终兜底。
+-->
+<iframe id="app"
+        title="业务站点"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals"></iframe>
+<div id="badge"></div>
+<script>
+/* ===== 配置区：迁移到其他项目只需改这三项 ===== */
+var CONFIG = {
+  frameOrigin: 'http://43.241.50.45:1088',  // 被包裹站点的 origin
+  defaultPath: '/site/',                 // 无 hash 时的默认路由
+  allowPopups: ['/site/oauth/*']         // 允许开真实窗口的路径白名单（唯一决策方=容器）
+};
+/* ============================================ */
+
+(function () {
+  'use strict';
+
+  var frame = document.getElementById('app');
+  var ORIGIN = CONFIG.frameOrigin;
+  var driving = false;   // 本次地址变化由容器驱动，抑制 hashchange 再次改写 iframe
+
+  // 徽标自解释：单文件被放到任意路径都能显示自身位置，便于对照 /evil.html 等场景
+  document.getElementById('badge').textContent =
+    window.location.host + window.location.pathname;
+
+  // 跨源下容器读不到 iframe.location，只能由 hash 承载路由。
+  function frameSrc() {
+    var h = window.location.hash.replace(/^#/, '');
+    return ORIGIN + (h.charAt(0) === '/' ? h : CONFIG.defaultPath);
+  }
+
+  function toPath(url) {
+    try {
+      var u = new URL(url);
+      return u.pathname + u.search + u.hash;
+    } catch (e) { return null; }
+  }
+
+  // 容器是弹窗策略的唯一决策者，通过 postMessage 下发给被嵌页面执行。
+  function pushPolicy() {
+    try {
+      frame.contentWindow.postMessage(
+        { channel: 'frame-bridge', type: 'policy', allowPopups: CONFIG.allowPopups },
+        ORIGIN
+      );
+    } catch (e) { /* 忽略 */ }
+  }
+
+  frame.addEventListener('load', pushPolicy);
+
+  window.addEventListener('message', function (event) {
+    if (event.origin !== ORIGIN) return;               // 安全：来源校验
+    if (event.source !== frame.contentWindow) return;  // 安全：只信任本 iframe
+    var data = event.data;
+    if (!data || data.channel !== 'frame-bridge' || data.type !== 'event') return;
+
+    if (data.kind === 'ready' || data.kind === 'navigated') {
+      var path = toPath(data.url);
+      if (path && '#' + path !== window.location.hash) {
+        driving = true;
+        window.location.hash = path;   // 顶层历史由容器持有，前进/后退可回放
+      }
+      return;
+    }
+    console.log('[容器] 被嵌页面事件：', data.kind, data.url || '');
+  });
+
+  // 浏览器前进/后退：把 iframe 驱到 hash 对应的路由
+  window.addEventListener('hashchange', function () {
+    if (driving) { driving = false; return; }
+    frame.src = frameSrc();
+  });
+
+  frame.src = frameSrc();
+})();
+</script>
+</body>
+</html>
